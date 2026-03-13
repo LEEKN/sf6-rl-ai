@@ -1,0 +1,12 @@
+{
+  "0": {"name": "待機 (Idle)", "keys": [], "frames": 1},
+  "1": {"name": "前進 (Move Forward)", "keys": ["right"], "frames": 10},
+  "2": {"name": "後退/防禦 (Move Backward/Block)", "keys": ["left"], "frames": 10},
+  "3": {"name": "下蹲防禦 (Crouch Block)", "keys": ["down", "left"], "frames": 15},
+  "4": {"name": "輕拳 (Light Punch)", "keys": ["q"], "frames": 15},
+  "5": {"name": "中腳 (Medium Kick)", "keys": ["s"], "frames": 25},
+  "6": {"name": "重拳 (Heavy Punch)", "keys": ["e"], "frames": 35},
+  "7": {"name": "摔技 (Throw)", "keys": ["r"], "frames": 30},
+  "8": {"name": "動力衝擊 (Drive Impact)", "keys": ["space"], "frames": 40},
+  "9": {"name": "波動拳/飛行道具", "keys": ["down", "right", "q"], "frames": 47}
+}

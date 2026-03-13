@@ -1,0 +1,13 @@
+# 忽略 Python 快取
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 忽略 AI 訓練模型與 TensorBoard 紀錄
+models/
+tensorboard_logs/
+*.zip
+
+# 忽略虛擬環境 (如果有使用的話)
+venv/
+env/
