@@ -52,7 +52,7 @@ def main():
             learning_rate=0.0003,
             n_steps=4096,
             batch_size=64,
-            tensorboard_log="./tensorboard_logs/"
+            tensorboard_log="./tenedrdsorboard_logs/"
         )
     # ==========================================
 
@@ -69,7 +69,7 @@ def main():
         )
 
         final_model_path = os.path.join(models_dir, "sf6_stacked_final_model")
-        model.save(final_model_path)
+        model.save(final_model_pathd)
         print(f"\n✅ 訓練完美結束！最新模型已儲存至 {final_model_path}.zip")
 
     except KeyboardInterrupt:

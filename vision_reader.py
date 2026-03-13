@@ -1,76 +1,68 @@
 import cv2
 import numpy as np
 import mss
+from ultralytics import YOLO
 
 
 class VisionReader:
-    """
-    負責擷取螢幕畫面、轉換 AI 觀察狀態，並解析精準的血量與鬥氣條區域。
-    """
-
     def __init__(self, monitor_number=1):
         self.sct = mss.mss()
         self.monitor = {"top": 0, "left": 0, "width": 1280, "height": 720}
 
-        # 使用你精準框選的座標
         self.p1_health_roi = (72, 100, 125, 594)
         self.p2_health_roi = (71, 99, 689, 1153)
-        self.p1_drive_roi = (106, 120, 373, 593)
-        self.p2_drive_roi = (106, 121, 690, 909)
 
-    def capture_frame(self):
-        """擷取當前螢幕畫面並轉換為 OpenCV 格式 (BGR)"""
-        sct_img = self.sct.grab(self.monitor)
-        frame = cv2.cvtColor(np.array(sct_img), cv2.COLOR_BGRA2BGR)
-        return frame
+        # 🌟 載入 YOLO 羅盤
+        print("🚀 啟動 YOLOv8 視覺羅盤...")
+        self.yolo_model = YOLO("yolov8n.pt")
 
-    def get_ai_observation(self, frame):
-        """轉換為 AI 適合的格式 (縮小 + 灰階)"""
-        resized = cv2.resize(frame, (256, 144))
-        gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-        observation = np.expand_dims(gray, axis=0)
-        return observation
+        # 追蹤 P1 和 P2 的 X 座標 (預設 P1 在左邊，P2 在右邊)
+        self.p1_x = 300
+        self.p2_x = 900
+        self.is_flipped = False
+
+    # ... (保留你原本的 capture_frame 和 get_ai_observation 不變) ...
 
     def get_health_bars(self, frame):
-        """回傳 P1 和 P2 的目前血量百分比"""
-        p1_crop = frame[self.p1_health_roi[0]:self.p1_health_roi[1],
-        self.p1_health_roi[2]:self.p1_health_roi[3]]
-        p2_crop = frame[self.p2_health_roi[0]:self.p2_health_roi[1],
-        self.p2_health_roi[2]:self.p2_health_roi[3]]
+        # ... (保留你原本的裁切與計算邏輯) ...
+        # (這裡省略以節省版面，請保留你精準計算血量的程式碼)
+        pass
 
-        p1_health = self._calculate_percentage(p1_crop)
-        p2_health = self._calculate_percentage(p2_crop)
-        return p1_health, p2_health
+    def update_positions(self, frame):
+        """🌟 新增：使用 YOLO 更新人物座標，並判斷是否換位"""
+        # 為了效能，我們可以把圖片縮小一點給 YOLO 看
+        small_frame = cv2.resize(frame, (640, 360))
+        results = self.yolo_model.predict(source=small_frame, classes=[0], conf=0.4, verbose=False)
 
-    def get_drive_bars(self, frame):
-        """(未來擴充用) 回傳 P1 和 P2 的目前鬥氣條百分比"""
-        p1_crop = frame[self.p1_drive_roi[0]:self.p1_drive_roi[1],
-        self.p1_drive_roi[2]:self.p1_drive_roi[3]]
-        p2_crop = frame[self.p2_drive_roi[0]:self.p2_drive_roi[1],
-        self.p2_drive_roi[2]:self.p2_drive_roi[3]]
+        boxes = results[0].boxes
+        current_x_centers = []
 
-        p1_drive = self._calculate_percentage(p1_crop)
-        p2_drive = self._calculate_percentage(p2_crop)
-        return p1_drive, p2_drive
+        for box in boxes:
+            x1, _, x2, _ = map(int, box.xyxy[0])
+            # 因為圖片縮小了一半，所以中心座標要乘 2 還原
+            center_x = ((x1 + x2) / 2) * 2
+            current_x_centers.append(center_x)
 
-    def _calculate_percentage(self, crop_img):
-        """內部函式：計算裁切圖片中的亮度比例 (血量/鬥氣量)"""
-        gray_crop = cv2.cvtColor(crop_img, cv2.COLOR_BGR2GRAY)
-        _, threshold = cv2.threshold(gray_crop, 100, 255, cv2.THRESH_BINARY)
+        # 如果剛好抓到兩個人
+        if len(current_x_centers) >= 2:
+            # 依照 X 座標由左至右排序
+            current_x_centers.sort()
+            left_person = current_x_centers[0]
+            right_person = current_x_centers[1]
 
-        white_pixels = cv2.countNonZero(threshold)
-        total_pixels = threshold.shape[0] * threshold.shape[1]
-        return white_pixels / total_pixels
+            # 使用距離判斷法：離上一次 P1 位置比較近的，就是 P1
+            dist_p1_to_left = abs(self.p1_x - left_person)
+            dist_p1_to_right = abs(self.p1_x - right_person)
 
+            if dist_p1_to_left < dist_p1_to_right:
+                # P1 在左邊 (正常狀態)
+                self.p1_x = left_person
+                self.p2_x = right_person
+                self.is_flipped = False
+            else:
+                # P1 跑到右邊了 (換位狀態)
+                self.p1_x = right_person
+                self.p2_x = left_person
+                self.is_flipped = True
 
-# ==========================================
-# 測試程式碼
-# ==========================================
-if __name__ == "__main__":
-    vision = VisionReader()
-    frame = vision.capture_frame()
-    p1_hp, p2_hp = vision.get_health_bars(frame)
-    p1_drive, p2_drive = vision.get_drive_bars(frame)
-
-    print(f"❤️  P1 血量: {p1_hp * 100:.2f}% | 🟩 P1 鬥氣: {p1_drive * 100:.2f}%")
-    print(f"❤️  P2 血量: {p2_hp * 100:.2f}% | 🟩 P2 鬥氣: {p2_drive * 100:.2f}%")
+        return self.is_flipped

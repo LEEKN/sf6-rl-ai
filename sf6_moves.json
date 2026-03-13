@@ -3,10 +3,44 @@
   "1": {"name": "前進 (Move Forward)", "keys": ["right"], "frames": 10},
   "2": {"name": "後退/防禦 (Move Backward/Block)", "keys": ["left"], "frames": 10},
   "3": {"name": "下蹲防禦 (Crouch Block)", "keys": ["down", "left"], "frames": 15},
-  "4": {"name": "輕拳 (Light Punch)", "keys": ["q"], "frames": 15},
-  "5": {"name": "中腳 (Medium Kick)", "keys": ["s"], "frames": 25},
-  "6": {"name": "重拳 (Heavy Punch)", "keys": ["e"], "frames": 35},
-  "7": {"name": "摔技 (Throw)", "keys": ["r"], "frames": 30},
-  "8": {"name": "動力衝擊 (Drive Impact)", "keys": ["space"], "frames": 40},
-  "9": {"name": "波動拳/飛行道具", "keys": ["down", "right", "q"], "frames": 47}
+
+  "4": {"name": "站立輕拳 (Stand LP)", "keys": ["q"], "frames": 15},
+  "5": {"name": "站立中拳 (Stand MP)", "keys": ["w"], "frames": 24},
+  "6": {"name": "站立重拳 (Stand HP)", "keys": ["e"], "frames": 35},
+  "7": {"name": "站立輕腳 (Stand LK)", "keys": ["a"], "frames": 19},
+  "8": {"name": "站立中腳 (Stand MK)", "keys": ["s"], "frames": 29},
+  "9": {"name": "站立重腳 (Stand HK)", "keys": ["d"], "frames": 33},
+
+  "10": {"name": "下蹲輕拳 (Crouch LP)", "keys": ["down", "q"], "frames": 15},
+  "11": {"name": "下蹲中拳 (Crouch MP)", "keys": ["down", "w"], "frames": 24},
+  "12": {"name": "下蹲重拳 / 對空 (Crouch HP)", "keys": ["down", "e"], "frames": 37},
+  "13": {"name": "下蹲輕腳 (Crouch LK)", "keys": ["down", "a"], "frames": 16},
+  "14": {"name": "下蹲中腳 (Crouch MK)", "keys": ["down", "s"], "frames": 28},
+  "15": {"name": "下蹲重腳 / 掃腿 (Crouch HK)", "keys": ["down", "d"], "frames": 35},
+
+  "16": {"name": "特殊技：鎖骨割 (Overhead)", "keys": ["right", "w"], "frames": 40},
+  "17": {"name": "特殊技：鳩尾碎 (Solar Plexus)", "keys": ["right", "e"], "frames": 40},
+  "18": {"name": "特殊技：短上勾拳 (Short Uppercut)", "keys": ["left", "e"], "frames": 30},
+  "19": {"name": "特殊技：下劈腿 (Axe Kick)", "keys": ["left", "d"], "frames": 31},
+
+  "20": {"name": "摔技 (Throw)", "keys": ["r"], "frames": 30},
+  "21": {"name": "動力衝擊 (Drive Impact)", "keys": ["space"], "frames": 63},
+  "22": {"name": "波動拳 (Hadouken)", "keys": ["down", "right", "q"], "frames": 47},
+
+  "23": {
+    "name": "巨集：下中腳確認波動拳",
+    "is_macro": true,
+    "sequence": [
+      {"keys": ["down", "s"], "frames": 12},
+      {"keys": ["down", "right", "q"], "frames": 47}
+    ]
+  },
+  "24": {
+    "name": "巨集：綠衝壓制重拳",
+    "is_macro": true,
+    "sequence": [
+      {"keys": ["right", "right"], "frames": 15},
+      {"keys": ["e"], "frames": 35}
+    ]
+  }
 }
