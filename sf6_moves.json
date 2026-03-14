@@ -25,14 +25,22 @@
 
   "20": {"name": "摔技 (Throw)", "keys": ["r"], "frames": 30},
   "21": {"name": "動力衝擊 (Drive Impact)", "keys": ["space"], "frames": 63},
-  "22": {"name": "波動拳 (Hadouken)", "keys": ["down", "right", "q"], "frames": 47},
-
+  "22": {
+    "name": "波動拳 (Hadouken)",
+    "is_complex": true,
+    "inputs": [
+      {"press": ["down"], "wait": 0.03},
+      {"press": ["down", "right"], "wait": 0.03},
+      {"press": ["right", "q"], "wait": 0.05}
+    ],
+    "frames": 47
+  },
   "23": {
     "name": "巨集：下中腳確認波動拳",
     "is_macro": true,
     "sequence": [
       {"keys": ["down", "s"], "frames": 12},
-      {"keys": ["down", "right", "q"], "frames": 47}
+      {"id": 22}
     ]
   },
   "24": {
