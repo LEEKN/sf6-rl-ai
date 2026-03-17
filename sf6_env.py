@@ -44,11 +44,19 @@ class SF6Env(gym.Env):
         self.current_step = 0
         self.MAX_STEPS = 3000
 
+        # TODO 7: 新增單局數據追蹤
+        self.episode_damage_dealt = 0.0
+        self.episode_damage_taken = 0.0
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         print("\n🛑 回合結束，觸發環境重置...")
         self.action_manager.reset_state()
         self.current_step = 0
+
+        # TODO 7: 新回合數據歸零
+        self.episode_damage_dealt = 0.0
+        self.episode_damage_taken = 0.0
 
         if self.match_mode == "versus":
             print("⏳ [時間凍結] 階段 1：等待退出當前對戰 (偵測血條消失)...")
@@ -163,10 +171,12 @@ class SF6Env(gym.Env):
 
         if enemy_damage > 0:
             reward += enemy_damage * 100
+            self.episode_damage_dealt += enemy_damage  # 🌟 記錄造成傷害
             print(f"🎉 傷害確認！獲得獎勵: +{enemy_damage * 100:.2f} (敵方剩餘: {new_enemy_h * 100:.1f}%)")
 
         if my_damage > 0:
             reward -= my_damage * 100
+            self.episode_damage_taken += my_damage  # 🌟 記錄承受傷害
             print(f"⚠️ 受到真實傷害！扣除分數: -{my_damage * 100:.2f} (自己剩餘: {new_my_h * 100:.1f}%)")
 
         is_defending = action_id in [2, 3]
@@ -174,18 +184,20 @@ class SF6Env(gym.Env):
             reward += 2.0
             print(f"🛡️ 成功防禦！獲得獎勵: +2.0 (消耗鬥氣: {my_drive_loss * 100:.1f}%)")
 
-        # ==========================================
-        # 🌟 TODO 8：探索與主動進攻獎勵
-        # ==========================================
-        # 如果 AI 選擇主動前進 (假設 ID 1 是前進)，且當下沒有受到傷害，給予極微小的誘因。
-        # 這樣可以打破 AI 覺得「不動最安全」的迷思，引導它進入立回距離。
         if action_id == 1 and my_damage <= 0:
             reward += 0.01
-        # ==========================================
 
         terminated = bool(new_my_h <= 0.03 or new_enemy_h <= 0.03)
+        info = {}  # 準備 info 字典
+
         if terminated:
             print(f"🛑 回合正式結束！(自己: {new_my_h * 100:.1f}% | 敵人: {new_enemy_h * 100:.1f}%)")
+            # 🌟 TODO 7: 回合結束時，結算戰績並放入 info
+            info["episode_damage_dealt"] = self.episode_damage_dealt
+            info["episode_damage_taken"] = self.episode_damage_taken
+            # 判斷輸贏：如果敵人血量先到底，算贏 (1.0)，否則算輸 (0.0)
+            info["win"] = 1.0 if new_enemy_h <= 0.03 and new_my_h > 0.03 else 0.0
+            info["match_length"] = self.current_step
 
         truncated = bool(self.current_step >= self.MAX_STEPS)
         if truncated:
@@ -202,5 +214,4 @@ class SF6Env(gym.Env):
         self.prev_my_drive = my_drive
         self.prev_enemy_drive = enemy_drive
 
-        info = {}
         return obs_dict, reward, terminated, truncated, info
