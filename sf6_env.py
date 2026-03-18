@@ -23,11 +23,15 @@ class SF6Env(gym.Env):
         # 🌟 TODO 2：升級為多模態觀察空間 (Dict)
         # ==========================================
         self.observation_space = spaces.Dict({
-            # 視覺畫面輸入 (1, 144, 256)
             "image": spaces.Box(low=0, high=255, shape=(1, 144, 256), dtype=np.uint8),
-            # 數值狀態輸入 [my_health, enemy_health, my_drive, enemy_drive]
-            "stats": spaces.Box(low=0.0, high=1.0, shape=(4,), dtype=np.float32)
+            # [自己血量, 敵人血量, 自己鬥氣, 敵人鬥氣, 冷卻倒數, 幀數優劣, 敵方硬直]
+            "stats": spaces.Box(low=-1.0, high=1.0, shape=(7,), dtype=np.float32)
         })
+
+        # 新增追蹤變數
+        self.current_frame_adv = 0.0
+        self.enemy_stun_frames = 0.0
+        self.last_action_id = 0
         # ==========================================
 
         self.prev_my_health = 1.0
@@ -48,6 +52,14 @@ class SF6Env(gym.Env):
         self.episode_damage_dealt = 0.0
         self.episode_damage_taken = 0.0
 
+        # TODO 8 防禦疲勞追蹤器
+        self.consecutive_defends = 0
+
+        # TODO 18: 新增狀態推演追蹤變數
+        self.current_frame_adv = 0.0
+        self.enemy_stun_frames = 0.0
+        self.last_action_id = 0
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         print("\n🛑 回合結束，觸發環境重置...")
@@ -57,6 +69,12 @@ class SF6Env(gym.Env):
         # TODO 7: 新回合數據歸零
         self.episode_damage_dealt = 0.0
         self.episode_damage_taken = 0.0
+        self.consecutive_defends = 0
+
+        # TODO 18: 新回合重置幀數狀態
+        self.current_frame_adv = 0.0
+        self.enemy_stun_frames = 0.0
+        self.last_action_id = 0
 
         if self.match_mode == "versus":
             print("⏳ [時間凍結] 階段 1：等待退出當前對戰 (偵測血條消失)...")
@@ -110,11 +128,14 @@ class SF6Env(gym.Env):
 
         observation = self.vision.get_ai_observation(frame)
 
-        # 🌟 打包成 Dict 格式
+        # TODO 18: 打包成 7 維 Dict 格式 (初始值冷卻和幀數皆為 0)
         obs_dict = {
             "image": observation,
-            "stats": np.array([self.prev_my_health, self.prev_enemy_health, self.prev_my_drive, self.prev_enemy_drive],
-                              dtype=np.float32)
+            "stats": np.array([
+                self.prev_my_health, self.prev_enemy_health,
+                self.prev_my_drive, self.prev_enemy_drive,
+                0.0, 0.0, 0.0  # 冷卻倒數, 幀數優劣, 敵方硬直
+            ], dtype=np.float32)
         }
 
         print("▶️ [時間凍結解除] 新回合正式開始！")
@@ -179,13 +200,65 @@ class SF6Env(gym.Env):
             self.episode_damage_taken += my_damage  # 🌟 記錄承受傷害
             print(f"⚠️ 受到真實傷害！扣除分數: -{my_damage * 100:.2f} (自己剩餘: {new_my_h * 100:.1f}%)")
 
-        is_defending = action_id in [2, 3]
-        if is_defending and my_drive_loss > 0.01 and my_damage <= 0.005:
-            reward += 2.0
-            print(f"🛡️ 成功防禦！獲得獎勵: +2.0 (消耗鬥氣: {my_drive_loss * 100:.1f}%)")
+        is_defending = action_id in [2, 3]  # 後退防禦 或 下蹲防禦
+        is_moving_forward = action_id == 1  # 前進
 
-        if action_id == 1 and my_damage <= 0:
-            reward += 0.01
+        if is_defending:
+            if my_drive_loss > 0.01 and my_damage <= 0.005:
+                # 成功防禦，增加疲勞度
+                self.consecutive_defends += 1
+
+                # 計算遞減獎勵 (從 2.0 開始扣除，最低降到 0.1)
+                defense_reward = max(0.1, 2.0 - (self.consecutive_defends * 0.4))
+                reward += defense_reward
+                print(f"🛡️ 成功防禦！獲得獎勵: +{defense_reward:.2f} (連續防禦計數: {self.consecutive_defends})")
+        else:
+            # 只要 AI 放棄防禦做其他動作，疲勞值歸零
+            self.consecutive_defends = 0
+
+        if is_moving_forward:
+            # 給予微小的推進獎勵，鼓勵主動拉近距離 (對抗龜縮)
+            reward += 0.05
+
+        # ==========================================
+        # TODO 18: 內部狀態機推演 (Frame Advantage & Stun)
+        # ==========================================
+        last_move = self.action_manager.move_list.get(self.last_action_id, {})
+
+        # 當前一招剛好脫離硬直的瞬間，結算該招的結果
+        if self.last_action_id != 0 and not is_busy:
+            if enemy_damage > 0:
+                # 命中 (Hit)
+                adv = last_move.get("on_hit_adv", 0)
+                stun = last_move.get("hitstun", 0)
+                self.current_frame_adv = max(-60, min(60, adv))
+                self.enemy_stun_frames = stun
+            elif self.prev_enemy_drive - enemy_drive > 0.01 and enemy_damage <= 0:
+                # 被防禦 (Block)
+                adv = last_move.get("on_block_adv", 0)
+                stun = last_move.get("hitstun", 0) * 0.6  # 估算防禦硬直較短
+                self.current_frame_adv = max(-60, min(60, adv))
+                self.enemy_stun_frames = stun
+
+        # 時間流逝 (扣除幀數優劣與硬直)
+        time_passed = self.action_manager.frames_per_step
+        if self.current_frame_adv > 0:
+            self.current_frame_adv = max(0, self.current_frame_adv - time_passed)
+        elif self.current_frame_adv < 0:
+            self.current_frame_adv = min(0, self.current_frame_adv + time_passed)
+
+        self.enemy_stun_frames = max(0, self.enemy_stun_frames - time_passed)
+
+        # 更新最後一次的有效動作 (如果是待機就不更新)
+        if action_id != 0:
+            self.last_action_id = action_id
+
+        # 取得冷卻倒數
+        cooldown_norm = max(0, self.action_manager.cooldown_frames) / 60.0
+
+        # 正規化幀數 (-1.0 ~ 1.0)
+        norm_adv = self.current_frame_adv / 60.0
+        norm_stun = self.enemy_stun_frames / 60.0
 
         terminated = bool(new_my_h <= 0.03 or new_enemy_h <= 0.03)
         info = {}  # 準備 info 字典
@@ -203,10 +276,14 @@ class SF6Env(gym.Env):
         if truncated:
             print("⚠️ 回合時間過長，觸發環境強制重置 (Truncated)！")
 
-        # 🌟 將觀測值與精確數值打包成 Dict
+        # TODO 18: 將推演結果打包送給大腦
         obs_dict = {
             "image": observation,
-            "stats": np.array([new_my_h, new_enemy_h, my_drive, enemy_drive], dtype=np.float32)
+            "stats": np.array([
+                new_my_h, new_enemy_h,
+                my_drive, enemy_drive,
+                cooldown_norm, norm_adv, norm_stun
+            ], dtype=np.float32)
         }
 
         self.prev_my_health = new_my_h

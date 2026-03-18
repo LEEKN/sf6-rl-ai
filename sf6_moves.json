@@ -3,10 +3,23 @@
   "1": {"name": "前進 (Move Forward)", "keys": ["right"], "frames": 10},
   "2": {"name": "後退/防禦 (Move Backward/Block)", "keys": ["left"], "frames": 10},
   "3": {"name": "下蹲防禦 (Crouch Block)", "keys": ["down", "left"], "frames": 15},
-
-  "4": {"name": "站立輕拳 (Stand LP)", "keys": ["q"], "frames": 15},
+  "4": {
+    "name": "站立輕拳 (Stand LP)",
+    "keys": ["q"],
+    "frames": 15,
+    "on_hit_adv": 4,
+    "on_block_adv": -1,
+    "hitstun": 11
+  },
   "5": {"name": "站立中拳 (Stand MP)", "keys": ["w"], "frames": 24},
-  "6": {"name": "站立重拳 (Stand HP)", "keys": ["e"], "frames": 35},
+  "6": {
+    "name": "站立重拳 (Stand HP)",
+    "keys": ["e"],
+    "frames": 35,
+    "on_hit_adv": 3,      // 命中時的幀數優勢 (+3)
+    "on_block_adv": -4,   // 被防禦時的幀數劣勢 (-4)
+    "hitstun": 24         // 造成對手的硬直時間 (估計值)
+  },
   "7": {"name": "站立輕腳 (Stand LK)", "keys": ["a"], "frames": 19},
   "8": {"name": "站立中腳 (Stand MK)", "keys": ["s"], "frames": 29},
   "9": {"name": "站立重腳 (Stand HK)", "keys": ["d"], "frames": 33},
